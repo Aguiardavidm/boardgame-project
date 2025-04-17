@@ -24,14 +24,22 @@ def get_bgg_data(game_id):
         min_players = None
         max_players = None
         year_published = None
+        averageweight = None  # Initialize variable for averageweight
 
         # Extract rating from the statistics section (if available)
         statistics = root.find(".//statistics")
         if statistics is not None:
-            rating_element = statistics.find(".//rating")
-            if rating_element is not None:
-                rating = float(rating_element.attrib.get("value", "0.0"))
-        
+            ratings = statistics.find("ratings")
+            if ratings is not None:
+                average = ratings.find("average")
+                if average is not None:
+                    rating = float(average.attrib.get("value", "0.0"))
+            
+                # Extract average weight
+                weight_element = ratings.find("averageweight")
+                if weight_element is not None:
+                    averageweight = float(weight_element.attrib.get("value", "0.0"))
+
         # Extract min and max players (if available)
         min_players_element = root.find(".//minplayers")
         if min_players_element is not None:
@@ -46,7 +54,7 @@ def get_bgg_data(game_id):
         if year_published_element is not None:
             year_published = int(year_published_element.attrib.get("value", "0"))
         
-        return (game_id, name, rating, min_players, max_players, year_published)
+        return (game_id, name, rating, min_players, max_players, year_published, averageweight)
     else:
         print(f"Failed to fetch data for game ID {game_id}")
         return None
@@ -66,17 +74,24 @@ def update_game_data():
         game_data = get_bgg_data(game_id)
         
         if game_data:
-            # Update the game data in the database
             cursor.execute(''' 
                 UPDATE games
-                SET name = ?, rating = ?, min_players = ?, max_players = ?, year_published = ?
+                SET name = ?, rating = ?, min_players = ?, max_players = ?, year_published = ?, averageweight = ?
                 WHERE id = ?
-            ''', game_data[1:] + (game_data[0],))
+            ''', (
+                game_data[1],  # name
+                game_data[2],  # rating
+                game_data[3],  # min_players
+                game_data[4],  # max_players
+                game_data[5],  # year_published
+                game_data[6],  # averageweight
+                game_data[0]   # id (for WHERE clause)
+            ))
             conn.commit()
             print(f"Updated game ID {game_id} with data: {game_data[1:]}")
         
-        # Wait 10 seconds before making another request to BGG
-        time.sleep(10)
+        # Wait 6 seconds before making another request to BGG
+        time.sleep(6)
 
 # Run the update function
 update_game_data()

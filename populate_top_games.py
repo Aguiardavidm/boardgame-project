@@ -24,7 +24,7 @@ def populate_game_ids():
     """
     Populate the SQLite database with the most popular game IDs from BoardGameGeek.
     """
-    url = 'https://boardgamegeek.com/xmlapi2/hot?type=boardgame'
+    url = 'curl "https://boardgamegeek.com/xmlapi2/top?type=boardgame'
     
     # Send a request to the BGG API to get the most popular games (by rank)
     response = requests.get(url)
