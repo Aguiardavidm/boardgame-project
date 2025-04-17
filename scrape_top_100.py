@@ -1,46 +1,42 @@
 import requests
 from bs4 import BeautifulSoup
 import sqlite3
+import re
 
-def scrape_top_bgg():
-    top_games = []
-    base_url = "https://boardgamegeek.com/browse/boardgame"
-    
-    for page in range(1, 6):  # Iterate through first 5 pages (approx. 100 games per page)
-        url = f"{base_url}?page={page}"
+def get_top_bgg_games(pages=5):
+    game_ids = []
+
+    for page in range(1, pages + 1):
+        url = f"https://boardgamegeek.com/browse/boardgame/page/{page}"
         response = requests.get(url)
-        
-        if response.status_code != 200:
-            print(f"Failed to load page {page}: {response.status_code}")
-            continue
-
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.content, "html.parser")
 
         rows = soup.select("tr[id^='row_']")
         for row in rows:
-            game_link = row.select_one(".primary")
-            if game_link:
-                href = game_link["href"]
-                bgg_id = int(href.split('/')[2])  # Extract the game ID from the URL
-                top_games.append(bgg_id)
+            title_tag = row.select_one("td.collection_objectname a")
+            href = title_tag["href"]
 
-        print(f"Fetched {len(top_games)} games so far...")
+            # Extract the ID using regex from the URL (e.g., /boardgame/174430/gloomhaven)
+            match = re.search(r"/boardgame/(\d+)", href)
+            if match:
+                game_id = int(match.group(1))
+                game_ids.append(game_id)
 
-    print(f"\nTop {len(top_games)} games fetched.")
-    return top_games
+    print(f"\n🔎 Sample IDs: {game_ids[:10]}")
+    return game_ids
 
 def insert_game_ids_into_db(game_ids):
     conn = sqlite3.connect("boardgames.db")
     cursor = conn.cursor()
 
-    # Ensure the table exists
-    cursor.execute('''
+    # Create table if not exists
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS games (
             id INTEGER PRIMARY KEY
         )
-    ''')
+    """)
 
-    # Check how many games already exist
+    # Show how many games already exist
     cursor.execute("SELECT COUNT(*) FROM games")
     existing_count = cursor.fetchone()[0]
     print(f"\n📊 There are currently {existing_count} games in the database.")
@@ -61,5 +57,5 @@ def insert_game_ids_into_db(game_ids):
     print(f"\n✅ Done. Inserted {inserted_count} new game IDs.")
 
 if __name__ == "__main__":
-    top_game_ids = scrape_top_bgg()
+    top_game_ids = get_top_bgg_games(pages=5)
     insert_game_ids_into_db(top_game_ids)
